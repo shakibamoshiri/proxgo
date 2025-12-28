@@ -23,7 +23,8 @@ func icheck() (err error) {
 	}
 
 	var result ServerUsersResponse
-	var users [3]int
+    serverCount := len(yaml.Pools.Servers)
+	users := make([]int, serverCount, serverCount)
 
 	client := &http.Client{
 		Timeout: (time.Second * config.ClientTimeout),
