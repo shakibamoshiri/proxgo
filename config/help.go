@@ -107,10 +107,12 @@ func agentHelp(cmd string) {
 }
 
 func userHelp(cmd string) {
-	cmdOrder := [...]string{"create", "delete", "renew", "setup", "limit", "archive", "config", "lock", "unlock"}
+	cmdOrder := [...]string{"create", "delete", "list", "stats", "renew", "setup", "limit", "archive", "config", "lock", "unlock"}
 	subCmds := make(map[string]string, len(cmdOrder))
 	subCmds["create"] = "create a new user"
 	subCmds["delete"] = "delete a user (online user)"
+	subCmds["list"] = "list of users"
+	subCmds["stats"] = "stats of users (more details)"
 	subCmds["renew"] = "renew a user (if deleted)"
 	subCmds["setup"] = "setup a user (if connected)"
 	subCmds["limit"] = "disable a user (if passed limits)"

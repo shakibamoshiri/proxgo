@@ -79,6 +79,8 @@ func Parse(args []string) (err error) {
             err = _delete(nextArgs)
         case "list":
             err = list()
+        case "stats":
+            err = stats()
         case "setup":
             err = setup(nextArgs, os.Stdout)
         case "limit":

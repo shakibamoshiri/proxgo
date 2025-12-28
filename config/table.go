@@ -71,16 +71,33 @@ const QUERY_USER_LIST = `
 SELECT
     u.username,
     u.realname,
-    u.ctime,
-    COALESCE(s.traffic, 0),
-    COALESCE(s.session, 0),
+    COALESCE(f.traffic, 0),
+    COALESCE(f.session, 0),
     CASE
-        WHEN s.username IS NULL THEN 'unavailable'
-        WHEN s.session = 0 THEN 'created'
+        WHEN f.username IS NULL THEN 'unavailable'
+        WHEN f.session = 0 THEN 'created'
         ELSE 'connected'
     END
 FROM users u
-LEFT JOIN fetched s ON u.username = s.username`
+LEFT JOIN fetched f ON u.username = f.username`
+
+const QUERY_USER_STATS = `
+SELECT
+    b.username,
+    b.realname,
+    b.sessions,
+    b.ctime,
+    b.etime,
+    b.bytes_used,
+    b.bytes_pday,
+    b.seconds_base,
+    CASE
+        WHEN f.username IS NULL THEN 'unavailable'
+        WHEN f.session = 0 THEN 'created'
+        ELSE 'connected'
+    END
+FROM bytes b
+LEFT JOIN fetched f ON b.username = f.username;`
 
 const QUERY_USER_SETUP = `
 SELECT
