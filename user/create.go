@@ -250,9 +250,10 @@ func create(args []string) (err error) {
     } else {
         period = userPeriod
     }
-    page := yaml.Pools.DB.Info[activeInfoIndex].Profile.Link + "/" + yaml.Agents.Agent.GroupName
+    // page := yaml.Pools.DB.Info[activeInfoIndex].Profile.Link + "/" + yaml.Agents.Agent.GroupName
+    page := RandomHex(4)
     now := time.Now().Unix()
-    profile := RandomHex(5)
+    profile := RandomHex(4)
     newUser := User{
         Username: __username,
         Realname: __realname,
