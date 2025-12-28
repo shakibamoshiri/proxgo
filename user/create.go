@@ -133,12 +133,12 @@ func create(args []string) (err error) {
         log.Fatal(err)
     }
 
-    __traffic, err := fq.Find("traffic").Default("1m").String()
+    __traffic, err := fq.Find("traffic").String()
     if err != nil {
         log.Fatal(err)
     }
 
-    __period, err := fq.Find("period").Default("30m").String()
+    __period, err := fq.Find("period").String()
     if err != nil {
         log.Fatal(err)
     }
