@@ -91,23 +91,18 @@ SELECT
     b.bytes_used,
     b.bytes_pday,
     b.seconds_base,
-    CASE
-        WHEN f.username IS NULL THEN 'unavailable'
-        WHEN f.session = 0 THEN 'created'
-        ELSE 'connected'
-    END
-FROM bytes b
-LEFT JOIN fetched f ON b.username = f.username;`
+    b.seconds_used
+FROM bytes b;`
 
 const QUERY_USER_SETUP = `
 SELECT
-    sf.username,
+    f.username,
     u.realname,
-    sf.session,
+    f.session,
     u.traffic AS traffic_base,
-    sf.traffic AS traffic_used,
+    f.traffic AS traffic_used,
     u.period AS second_base,
-    EXISTS (SELECT 1 FROM bytes b WHERE b.username = sf.username) AS init
-FROM fetched sf
-INNER JOIN users u ON sf.username = u.username
-WHERE sf.session > 0;`
+    EXISTS (SELECT 1 FROM bytes b WHERE b.username = f.username) AS init
+FROM fetched f
+INNER JOIN users u ON f.username = u.username
+WHERE f.session > 0;`

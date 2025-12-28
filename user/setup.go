@@ -100,7 +100,7 @@ func setup(args []string, dev io.Writer) (err error) {
                 user.bytesLimit,
 
                 user.secondBase,
-                user.secondUsed,
+                1,
                 user.secondLimit,
             )
             if errExec != nil {
@@ -123,7 +123,7 @@ func setup(args []string, dev io.Writer) (err error) {
                         sessions       = ?,
                         atime          = unixepoch(),
                         bytes_used     = ?,
-                        bytes_pday     = (? / (unixepoch() - ctime)),
+                        bytes_pday     = (? / seconds_base),
                         bytes_limit    = (? > bytes_base),
                         seconds_used   = (unixepoch() - ctime),
                         seconds_limit  = ((unixepoch() - ctime) > seconds_base)
@@ -139,7 +139,20 @@ func setup(args []string, dev io.Writer) (err error) {
                 }
                 ob.Fprintln(dev, "updated")
             } else {
-                ob.Fprintln(dev, "ignored")
+                _, errExec := db.Exec(`
+                    UPDATE bytes SET
+                        seconds_used   = (unixepoch() - ctime),
+                        bytes_pday     = CAST((bytes_used * 1.0 / NULLIF(seconds_used, 0)) * 86400 AS INTEGER),
+                        bytes_limit    = (bytes_used > bytes_base),
+                        seconds_limit  = ((unixepoch() - ctime) > seconds_base)
+                    WHERE username = ?`,
+                    user.username,
+                )
+                if errExec != nil {
+                    return errExec
+                }
+
+                ob.Fprintln(dev, "measured")
             }
 
         }
