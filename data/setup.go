@@ -22,13 +22,14 @@ func setup(args []string, pc *config.Pools, dev io.Writer) (err error) {
 
     ob := config.NewOutputBuffer()
 
-	tables := [tableMax]*table{
+	tables := [...]*table{
 		{name: "users", cmd: config.TABLE_CREATE_USERS},
 		{name: "bytes", cmd: config.TABLE_CREATE_BYTES},
 		{name: "archive", cmd: config.TABLE_CREATE_ARCHIVE},
 		{name: "fetched", cmd: config.TABLE_CREATE_FETCHED},
 	}
 
+    tableMax := len(tables)
 	for i := 0; i < tableMax; i++ {
 		ob.Fprintf(dev, "%-30s", "setup.table."+tables[i].name)
 

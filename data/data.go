@@ -8,8 +8,6 @@ import (
 	"github.com/shakibamoshiri/proxgo/config"
 )
 
-const tableMax int = 4
-
 type table struct {
 	name string
 	cmd  string

@@ -29,13 +29,14 @@ func wipe(args []string) (err error) {
 		return err
 	}
 
-	tables := [tableMax]*table{
+	tables := [...]*table{
 		{name: "users", cmd: config.TABLE_DELETE_USERS},
 		{name: "bytes", cmd: config.TABLE_DELETE_BYTES},
 		{name: "archive", cmd: config.TABLE_DELETE_ARCHIVE},
 		{name: "fetched", cmd: config.TABLE_DELETE_FETCHED},
 	}
 
+    tableMax := len(tables)
 	for i := 0; i < tableMax; i++ {
 		fmt.Printf("%-30s", "wipe.table."+tables[i].name)
 
