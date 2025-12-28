@@ -124,9 +124,7 @@ func setup(args []string, dev io.Writer) (err error) {
                         atime          = unixepoch(),
                         bytes_used     = ?,
                         bytes_pday     = CAST((? * 1.0 / NULLIF(seconds_used, 0)) * 86400 AS INTEGER),
-                        bytes_limit    = (? > bytes_base),
-                        seconds_used   = (unixepoch() - ctime),
-                        seconds_limit  = ((unixepoch() - ctime) > seconds_base)
+                        seconds_used   = (unixepoch() - ctime)
                     WHERE username = ?`,
                     user.sessions,
                     user.bytesUsed,
@@ -142,9 +140,7 @@ func setup(args []string, dev io.Writer) (err error) {
                 _, errExec := db.Exec(`
                     UPDATE bytes SET
                         seconds_used   = (unixepoch() - ctime),
-                        bytes_pday     = CAST((bytes_used * 1.0 / NULLIF(seconds_used, 0)) * 86400 AS INTEGER),
-                        bytes_limit    = (bytes_used > bytes_base),
-                        seconds_limit  = ((unixepoch() - ctime) > seconds_base)
+                        bytes_pday     = CAST((bytes_used * 1.0 / NULLIF(seconds_used, 0)) * 86400 AS INTEGER)
                     WHERE username = ?`,
                     user.username,
                 )
