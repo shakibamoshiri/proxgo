@@ -45,30 +45,3 @@ func run(args []string, pc *config.Pools, dev io.Writer) (err error) {
 
     return
 }
-
-// var timeMatch = regexp.MustCompile(`(\d+)([smhd])`)
-// func parsePeriodCustom(format *string) time.Duration {
-//     *format = strings.ToLower(*format)
-//     matchList := timeMatch.FindStringSubmatch(*format)
-//     config.Log.Info("matchList", "=", matchList)
-//     if len(matchList) == 3 {
-//         value, _ := strconv.ParseInt(matchList[1], 10, 64)
-//         unit := matchList[2]
-//         switch unit {
-//             case "s":
-//                 return value
-//             case "m":
-//                 return (value * 60)
-//             case "h":
-//                 return (value * 60 * 60)
-//             case "d":
-//                 return (value * 60 * 60 * 24)
-//             default:
-//                 return value
-//         }
-//     }
-// 
-//     return 0
-// }
-// 
-// 
