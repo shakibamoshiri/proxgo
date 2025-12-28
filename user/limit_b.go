@@ -91,7 +91,11 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
             if err != nil {
                 return fmt.Errorf("limit() / delete user %w", err)
             }
-            ob.Fprintln(dev, "deleted: bytesLimit")
+            err = archive(nextArgs)
+            if err != nil {
+                return fmt.Errorf("limit() / archive(%v) user %w", user.username, err)
+            }
+            ob.Fprintln(dev, "limited bytesLimit")
             config.Log.Warn("username", user.username, "delete (bytesLimit)")
             continue
         }
@@ -108,7 +112,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
             if err != nil {
                 return fmt.Errorf("limit() / archive(%v) user %w", user.username, err)
             }
-            ob.Fprintln(dev, "deleted: timeLimit")
+            ob.Fprintln(dev, "limited timeLimit")
             config.Log.Warn("username", user.username, "delete (timeLimit)")
             continue
         }
