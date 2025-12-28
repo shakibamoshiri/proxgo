@@ -17,7 +17,7 @@ func setup(args []string, dev io.Writer) (err error) {
     }
 
     var rowCount int64 = 0
-    err = db.QueryRow(`SELECT COUNT(*) from fetched where session > 0;`).Scan(&rowCount)
+    err = db.QueryRow(`SELECT COUNT(*) from fetched where sessions > 0;`).Scan(&rowCount)
     if err != nil {
         config.Log.Error("setup()", "db.QueryRow", err)
         return fmt.Errorf("setup() / db.QueryRow %w", err)

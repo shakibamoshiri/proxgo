@@ -63,19 +63,19 @@ const TABLE_CREATE_ARCHIVE = `CREATE TABLE archive (
 
 const TABLE_CREATE_FETCHED = `CREATE TABLE fetched (
     username TEXT PRIMARY KEY,
-    traffic  INTEGER NOT NULL,
-    session  INTEGER NOT NULL
+    bytes INTEGER NOT NULL,
+    sessions  INTEGER NOT NULL
 );`
 
 const QUERY_USER_LIST = `
 SELECT
     u.username,
     u.realname,
-    COALESCE(f.traffic, 0),
-    COALESCE(f.session, 0),
+    COALESCE(f.bytes, 0),
+    COALESCE(f.sessions, 0),
     CASE
         WHEN f.username IS NULL THEN 'unavailable'
-        WHEN f.session = 0 THEN 'created'
+        WHEN f.sessions = 0 THEN 'created'
         ELSE 'connected'
     END
 FROM users u
@@ -98,11 +98,11 @@ const QUERY_USER_SETUP = `
 SELECT
     f.username,
     u.realname,
-    f.session,
+    f.sessions,
     u.traffic AS traffic_base,
-    f.traffic AS traffic_used,
+    f.bytes AS traffic_used,
     u.period AS second_base,
     EXISTS (SELECT 1 FROM bytes b WHERE b.username = f.username) AS init
 FROM fetched f
 INNER JOIN users u ON f.username = u.username
-WHERE f.session > 0;`
+WHERE f.sessions > 0;`

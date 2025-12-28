@@ -37,8 +37,8 @@ func fetch(args []string, pc *config.Pools, dev io.Writer) (err error) {
     var result ServerUsersResponse
 
     type Agg struct {
-        Traffic int64
-        Session int64
+        Bytes int64
+        Sessions int64
     }
 
     agg := make(map[string]*Agg)
@@ -93,8 +93,8 @@ func fetch(args []string, pc *config.Pools, dev io.Writer) (err error) {
                 agg[user.Username] = a
             }
 
-            a.Traffic += user.DownlinkBytes + user.UplinkBytes
-            a.Session += user.TCPSessions + user.UDPSessions
+            a.Bytes += user.DownlinkBytes + user.UplinkBytes
+            a.Sessions += user.TCPSessions + user.UDPSessions
         }
         ob.Fprintln(dev, "fetched")
         config.Log.Info("response status code", "=", resp.StatusCode)
@@ -124,14 +124,14 @@ func fetch(args []string, pc *config.Pools, dev io.Writer) (err error) {
         }
         recordCount++
         username = trimAgentPrefix(username)
-        config.Log.Debug(username, "traffic", a.Traffic, "session", a.Session)
+        config.Log.Debug(username, "bytes", a.Bytes, "sessions", a.Sessions)
         _, errExec := db.Exec(`
-            INSERT INTO fetched (username, traffic, session)
+            INSERT INTO fetched (username, bytes, sessions)
             VALUES (?, ?, ?)
             ON CONFLICT(username) DO UPDATE SET
-                traffic = excluded.traffic,
-                session = excluded.session;
-            `, username, a.Traffic, a.Session)
+                bytes = excluded.bytes,
+                sessions = excluded.sessions;
+            `, username, a.Bytes, a.Sessions)
 
         if errExec != nil {
             return errExec
