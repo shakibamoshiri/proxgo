@@ -105,12 +105,14 @@ func parsePeriodCustom(format *string) int64 {
 func create(args []string) (err error) {
     config.Log.Debug("args", "=", args)
 
+
     flags := map[string]string{
         "name":       "name (alias) for a user [string]",
         "period" :    "period (duration) <number>[s|m|h]",
         "traffic" :   "traffic (volume) <number>[b|k|m|g]]",
         "password" :  "password (base64)",
         "username" :  "custom username for a user",
+        "noserver" :  "do not add user to servers",
         "help" :  "show help",
     }
 
@@ -121,6 +123,11 @@ func create(args []string) (err error) {
     __help, _ := fq.Find("help").Bool()
     if __help {
         fq.Help(flags).Exit(0)
+    }
+
+    __noserver, _ := fq.Find("noserver").Bool()
+    if __help {
+        log.Fatal(err)
     }
 
     __realname, err := fq.Find( "name").Assert().String()
@@ -210,6 +217,9 @@ func create(args []string) (err error) {
 
     var ssmApiAddr = ""
     for _, server := range yaml.Pools.Servers {
+        if __noserver {
+            continue
+        }
         ssmApiAddr = server.Addr("users")
         config.Log.Info("SSM API address", "ssmApiAddr", ssmApiAddr)
 
