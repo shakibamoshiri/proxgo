@@ -11,18 +11,18 @@ import (
 
 func trafficUnit(t int64) (int64, string) {
     if t == 0 {
-        return 0, "b"
+        return 0, "B"
     }
     if t < 1024 {
-        return t, "b"
+        return t, "B"
     }
     if t < 1024*1024 {
-        return t / 1024, "k"
+        return t / 1024, "KB"
     }
     if t < 1024*1024*1024 {
-        return t / (1024 * 1024), "m"
+        return t / (1024 * 1024), "MB"
     }
-    return t / (1024 * 1024 * 1024), "g"
+    return t / (1024 * 1024 * 1024), "GB"
 }
 
 func list() (err error) {
