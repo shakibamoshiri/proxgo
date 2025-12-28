@@ -66,11 +66,6 @@ func sendMsgContext(ctx context.Context, message string) error {
     botToken := agents.Agent.BotToken
     chatID := agents.Agent.BotChatID
 
-    select {
-        case <-ctx.Done():
-        return fmt.Errorf("sendMsgContext dummy error!")
-    }
-    
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
 	payload := map[string]any{
 		"chat_id": chatID,
