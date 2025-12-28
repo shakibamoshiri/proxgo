@@ -13,25 +13,21 @@ import (
 func _delete(args []string) (err error) {
     config.Log.Debug("args", "=", args)
 
-    flags := flag.NewFlagSet("delete", flag.ExitOnError)
+    df := flag.NewFlagSet("delete", flag.ExitOnError)
+    var username string
+    df.StringVar(&username, "user", "", "username to be deleted")
+    df.Parse(args)
 
-    // Define flags
-    username := flags.String("user", "", "username to be deleted")
-
-    // Important: Parse the flags!
-    flags.Parse(args)
-
-
-    if *username == "" {
+    if username == "" {
         println("user delete args:")
-        flags.PrintDefaults()
+        df.PrintDefaults()
         os.Exit(0)
     }
-    config.Log.Info("-user", "=", *username)
+    config.Log.Info("-user", "=", username)
 
     agentPrefix := fmt.Sprintf("_%d_", config.AgentID)
     config.Log.Info("agentPrefix", "=", agentPrefix)
-    ssUsername := agentPrefix + *username
+    ssUsername := agentPrefix + username
 
     var ssmApiAddr = ""
     for _, server := range yaml.Pools.Servers {
@@ -72,18 +68,8 @@ func _delete(args []string) (err error) {
     if err != nil {
         return fmt.Errorf("delete() >> %w", err)
     }
-    // db, openError := sql.Open("sqlite", dbFile)
-    // if openError != nil {
-    //     return openError
-    // }
-    // defer func(){
-    //     errClose := db.Close()
-    //     if errClose != nil {
-    //         err = errClose
-    //     }
-    // }()
 
-    result, err := db.Exec(`DELETE FROM fetched WHERE username = ?`, *username)
+    result, err := db.Exec(`DELETE FROM fetched WHERE username = ?`, username)
     if err != nil {
         config.Log.Error("delete", "db.Exec", err)
         return err
@@ -91,9 +77,9 @@ func _delete(args []string) (err error) {
 
     rowsAffected, _ := result.RowsAffected()
     if rowsAffected == 0 {
-        config.Log.Info("no record found for username", "=", *username)
+        config.Log.Info("no record found for username", "=", username)
     } else {
-        config.Log.Info("successfully deleted username", "=", *username)
+        config.Log.Info("successfully deleted username", "=", username)
     }
 
     return nil
