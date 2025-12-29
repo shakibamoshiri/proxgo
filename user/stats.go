@@ -10,7 +10,7 @@ import (
     "github.com/shakibamoshiri/proxgo/config"
 )
 
-func stats() (err error) {
+func stats(pools *config.Pools) (err error) {
     dbFile := fmt.Sprintf("./%s/%d.sqlite3", config.DbPath, config.AgentID)
     db, err := config.OpenDB(dbFile)
     if err != nil {
@@ -30,8 +30,11 @@ func stats() (err error) {
         }
     }()
 
-    fmt.Printf("%-15s %-20s %-10s %-10s %-10s %-10s %-10s %s\n",
-        "username", "realname", "elapsed", "remained", "expired", "traffic", "perDay", "sessions")
+    serverCount := int64(len(pools.Servers))
+    config.Log.Debug("serverCount", "=", serverCount)
+    fmt.Printf("%-15s %-20s %-10s %-10s %-10s %-10s %-10s %-10s %s\n",
+        "username", "realname", "elapsed", "remained",
+        "expired", "traffic", "perDay", "sessions", "spend")
 
     row := userColumn{}
     for rows.Next() {
@@ -57,14 +60,19 @@ func stats() (err error) {
         pd, unit := trafficUnit(row.bytesPday)
         pday := fmt.Sprintf("%d%s", pd, unit)
 
-        // elapsed := elapsedFmt(row.ctime)
         now := time.Now().Unix()
-        elapsed := fmtDuration(now - row.ctime)
-        remained := fmtDuration(row.secondBase - row.secondUsed)
+        elapsed := formatDurationDH(now - row.ctime)
+        remained := formatDurationDH(row.secondBase - row.secondUsed)
         expired := (now > row.etime)
+        days := ((now - row.ctime) / 86400)
+        if days == 0 {
+            days = 1
+        }
+        spend := formatDurationHM(row.sessions / days / serverCount * 5 * 60)
 
-        fmt.Printf("%-15s %-20s %-10s %-10s %-10t %-10s %-10s %d\n",
-            row.username, row.realname, elapsed, remained, expired, traffic, pday, row.sessions)
+        fmt.Printf("%-15s %-20s %-10s %-10s %-10t %-10s %-10s %-10d %s\n",
+            row.username, row.realname, elapsed, remained,
+            expired, traffic, pday, row.sessions, spend)
     }
 
     return nil
@@ -84,11 +92,12 @@ func elapsedFmt(v int64) string {
 const (
     secondsPerDay  = 24 * 60 * 60
     secondsPerHour = 60 * 60
+    secondsPerMinute = 60
 )
 
-func fmtDuration(seconds int64) string {
+func formatDurationDH(seconds int64) string {
     if seconds < 0 {
-        seconds = 0
+        return "0d0h"
     }
 
     days := seconds / secondsPerDay
@@ -96,4 +105,31 @@ func fmtDuration(seconds int64) string {
     hours := remainingSeconds / secondsPerHour
 
     return fmt.Sprintf("%dd:%dh", days, hours)
+}
+
+func formatDurationHM(seconds int64) string {
+    if seconds <= 0 {
+        return "0h0m"
+    }
+
+    hours := seconds / secondsPerHour
+    minutes := (seconds % secondsPerHour) / secondsPerMinute
+
+    return fmt.Sprintf("%dh%dm", hours, minutes)
+}
+
+func formatDurationDHM(seconds int64) string {
+    if seconds <= 0 {
+        return "0d0h0m"
+    }
+
+    days := seconds / secondsPerDay
+    remaining := seconds % secondsPerDay
+
+    hours := remaining / secondsPerHour
+    remaining %= secondsPerHour
+
+    minutes := remaining / secondsPerMinute
+
+    return fmt.Sprintf("%dd%dh%dm", days, hours, minutes)
 }
