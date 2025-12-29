@@ -129,7 +129,6 @@ func setup(args []string, dev io.Writer) (err error) {
                     user.sessions,
                     user.bytesUsed,
                     user.bytesUsed,
-                    user.bytesUsed,
                     user.username,
                 )
                 if errExec != nil {
