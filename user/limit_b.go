@@ -21,21 +21,21 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
     dbFile := fmt.Sprintf("./%s/%d.sqlite3", config.DbPath, config.AgentID)
     db, err := config.OpenDB(dbFile)
     if err != nil {
-        return fmt.Errorf("limit() >> %w", err)
+        return fmt.Errorf("limit >> %w", err)
     }
 
-    var rowCount int64 = 0
+    var rowCount int64
     var rows *sql.Rows
     err = db.QueryRow("SELECT COUNT(*) from bytes;").Scan(&rowCount)
     if err != nil {
-        config.Log.Error("limit()", "db.QueryRow()", err)
-        return fmt.Errorf("limit() / db.QueryRow() %w", err)
+        config.Log.Error("limit", "db.QueryRow()", err)
+        return fmt.Errorf("limit / db.QueryRow() %w", err)
     }
 
     rows, err = db.Query("SELECT * FROM bytes;")
     if err != nil {
-        config.Log.Error("limit()", "db.Query()", err)
-        return fmt.Errorf("limit() / db.Query() %w", err)
+        config.Log.Error("limit", "db.Query()", err)
+        return fmt.Errorf("limit / db.Query() %w", err)
     }
     defer func(){
         errClose := rows.Close()
@@ -82,38 +82,47 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
 
     for _, user := range userRow {
         ob.Fprintf(dev, "%-30s", "user.limit." + user.username)
-        // if user.bytesLimit {
         if (user.bytesUsed >= user.bytesBase) {
-            // delete([]string{"-user","xyz"})
-            // println("delete: bytesLimit")
             nextArgs := []string{"-user", user.username}
             err = _delete(nextArgs)
             if err != nil {
-                return fmt.Errorf("limit() / delete user %w", err)
+                return fmt.Errorf("limit / delete(%s) user %w", user.username, err)
             }
             err = archive(nextArgs)
             if err != nil {
-                return fmt.Errorf("limit() / archive(%v) user %w", user.username, err)
+                return fmt.Errorf("limit / archive(%s) user %w", user.username, err)
             }
-            ob.Fprintln(dev, "limited bytesLimit")
-            config.Log.Warn("username", user.username, "delete (bytesLimit)")
+            ob.Fprintln(dev, "limited (byte-limit)")
+
+            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> realname <code>%s</code> limited (byte-limit)", user.username, user.realname)
+            chanErr := make(chan error)
+            go tell.Fire_b("notify", ctxFire, chanErr, msg)
+            waitForTell.Add(1)
+            go goSync(&waitForTell, chanErr)
+
+            config.Log.Warn("username", user.username, "limited (byte-limit)")
             continue
         }
 
-        // if user.secondLimit {
         if (user.secondUsed >= user.secondBase) {
-            // println("delete: timeLimit")
             nextArgs := []string{"-user", user.username}
             err = _delete(nextArgs)
             if err != nil {
-                return fmt.Errorf("limit() / delete(%v) user %w", user.username,  err)
+                return fmt.Errorf("limit / delete(%s) user %w", user.username,  err)
             }
             err = archive(nextArgs)
             if err != nil {
-                return fmt.Errorf("limit() / archive(%v) user %w", user.username, err)
+                return fmt.Errorf("limit / archive(%s) user %w", user.username, err)
             }
-            ob.Fprintln(dev, "limited timeLimit")
-            config.Log.Warn("username", user.username, "delete (timeLimit)")
+            ob.Fprintln(dev, "limited (time-limit)")
+
+            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> realname <code>%s</code> limited (time-limit)", user.username, user.realname)
+            chanErr := make(chan error)
+            go tell.Fire_b("notify", ctxFire, chanErr, msg)
+            waitForTell.Add(1)
+            go goSync(&waitForTell, chanErr)
+
+            config.Log.Warn("username", user.username, "limited (time-limit)")
             continue
         }
 
@@ -123,7 +132,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
                 continue
             }
             ob.Fprintln(dev, "notify (expired in 1d)")
-            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> will be expired in 1d", user.username)
+            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> realname <code>%s</code> will be expired in 1d", user.username, user.realname)
 
             chanErr := make(chan error)
             go tell.Fire_b("notify", ctxFire, chanErr, msg)
@@ -142,13 +151,14 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
             ob.Fprintln(dev, "notify (limited in 1d)")
             config.Log.Info("notify (limited in 1d)", "username", user.username)
 
-            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> will be limited in 1d", user.username)
+            msg := fmt.Sprintf("<b>alert</b> username <code>%s</code> realname <code>%s</code> will be limited in 1d", user.username, user.realname)
 
             chanErr := make(chan error)
             go tell.Fire_b("notify", ctxFire, chanErr, msg)
 
             waitForTell.Add(1)
             go updateByteLimit(ctxFire, &waitForTell, chanErr, db, user.username)
+            continue
         }
 
         ob.Fprintln(dev, "ignored")
@@ -176,6 +186,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
         config.Log.Error("limit", "timeout", time.Since(started))
         return fmt.Errorf("limit timeout %w", ctx.Err())
     case <-done:
+        // err should be nil
         config.Log.Info("limit / waitForTell() done", "error", err)
         return err
     }
@@ -183,7 +194,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
     return err
 }
 
-func updateSecondLimit(ctx context.Context,wg *sync.WaitGroup, chanErr chan error, db *sql.DB, username string){
+func updateSecondLimit(ctx context.Context, wg *sync.WaitGroup, chanErr chan error, db *sql.DB, username string){
     defer wg.Done()
     err := <-chanErr
     if err != nil {
@@ -200,7 +211,7 @@ func updateSecondLimit(ctx context.Context,wg *sync.WaitGroup, chanErr chan erro
     }
 }
 
-func updateByteLimit(ctx context.Context,wg *sync.WaitGroup, chanErr chan error, db *sql.DB, username string){
+func updateByteLimit(ctx context.Context, wg *sync.WaitGroup, chanErr chan error, db *sql.DB, username string){
     defer wg.Done()
     err := <-chanErr
     if err != nil {
@@ -214,5 +225,16 @@ func updateByteLimit(ctx context.Context,wg *sync.WaitGroup, chanErr chan error,
                 return
         }
         config.Log.Info("db.Exec UPDATE succeeded", "username", username)
+    }
+}
+
+func goSync(wg *sync.WaitGroup, chanErr chan error){
+    defer wg.Done()
+    err := <-chanErr
+    if err != nil {
+        config.Log.Error("limit / goSync() err is not nil")
+        config.Log.Debug("limit / goSync() err is not nil", "error", err)
+    } else {
+        config.Log.Info("limit / goSync() succeeded")
     }
 }

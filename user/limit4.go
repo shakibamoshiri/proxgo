@@ -105,10 +105,15 @@ func (input LimitPipe) byteCheck4() LimitPipe {
     go func(){
         defer close(output)
         for ch := range input.next {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.bytesUsed >= ch.row.bytesBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "deleted (byte-limit)",
+                    set: true,
                 }
                 continue
             }
@@ -126,10 +131,15 @@ func (input LimitPipe) timeCheck4() LimitPipe {
     go func(){
         defer close(output)
         for ch := range input.next {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.secondUsed >= ch.row.secondBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "deleted (time-limit)",
+                    set: true,
                 }
                 continue
             }
@@ -148,10 +158,15 @@ func (input LimitPipe) timeNotif4() LimitPipe {
         defer close(output)
         const oneDay = 24*60*60
         for ch := range input.next {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.secondUsed + oneDay >= ch.row.secondBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "notified (time limit in 1d)",
+                    set: true,
                 }
                 continue
             }
@@ -170,10 +185,15 @@ func (input LimitPipe) byteNotif4() LimitPipe {
         defer close(output)
         const oneGig = 1 << 30
         for ch := range input.next {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.bytesUsed + oneGig >= ch.row.bytesBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "notified (byte limit in 1d)",
+                    set: true,
                 }
                 continue
             }

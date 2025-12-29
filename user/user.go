@@ -37,6 +37,7 @@ type userData struct {
     row     userColumn
     msg     string
     err     error
+    set     bool
 }
 
 type LimitPipe struct {
@@ -80,11 +81,12 @@ func Parse(args []string) (err error) {
         case "list":
             err = list()
         case "stats":
-            err = stats()
+            err = stats(pools)
         case "setup":
             err = setup(nextArgs, os.Stdout)
         case "limit":
-            err = limit(ctx, nextArgs, os.Stdout)
+            // err = limit(ctx, nextArgs, os.Stdout) DEPRECATED
+            err = limit_b(ctx, nextArgs, os.Stdout)
         case "limit_b":
             err = limit_b(ctx, nextArgs, os.Stdout)
         case "limit2":
@@ -126,7 +128,7 @@ func Run(fn string, args []string, dev io.Writer) error {
         case "setup":
             return setup(args, dev)
         case "limit":
-            return limit(ctx, args, dev)
+            return limit_b(ctx, args, dev)
         default:
             return fmt.Errorf("server.Run(%s) not found", fn)
     }

@@ -35,17 +35,17 @@ func limit2(ctx context.Context, args []string, dev io.Writer) (err error) {
     chanTime := make(chan userData)
     go timeCheck2(chanByte, chanTime)
 
-    // notify if time will be expired
-    chanTimeNotif := make(chan userData)
-    go timeNotif2(chanTime, chanTimeNotif)
-
     // notify if byte will be used
     chanByteNotif := make(chan userData)
-    go byteNotif2(chanTimeNotif, chanByteNotif)
+    go byteNotif2(chanTime, chanByteNotif)
+
+    // notify if time will be expired
+    chanTimeNotif := make(chan userData)
+    go timeNotif2(chanByteNotif, chanTimeNotif)
 
     // print what remained
     chanDone := make(chan struct{})
-    go chanPrint2(chanByteNotif, chanDone)
+    go chanPrint2(chanTimeNotif, chanDone)
     <- chanDone
 
     return err
@@ -116,10 +116,15 @@ func getRows2(db *sql.DB, output chan userData) <- chan userData  {
 func byteCheck2(input <- chan userData, output chan userData) {
     defer close(output)
     for ch := range input {
-        if (ch.row.bytesUsed >= ch.row.bytesBase) {
+        if ch.set {
+            output <- ch
+            continue
+        }
+        if ch.row.bytesUsed >= ch.row.bytesBase {
             output <- userData{
                 row: ch.row,
                 msg: "deleted (byte-limit)",
+                set: true,
             }
             continue
         }
@@ -133,28 +138,15 @@ func byteCheck2(input <- chan userData, output chan userData) {
 func timeCheck2(input <- chan userData, output chan userData) {
     defer close(output)
     for ch := range input {
-        if (ch.row.secondUsed >= ch.row.secondBase) {
+        if ch.set {
+            output <- ch
+            continue
+        }
+        if ch.row.secondUsed >= ch.row.secondBase {
             output <- userData{
                 row: ch.row,
                 msg: "deleted (time-limit)",
-            }
-            continue
-        }
-        output <- userData{
-            row: ch.row,
-            msg: "ignored",
-        }
-    }
-}
-
-func timeNotif2(input <- chan userData, output chan userData) {
-    defer close(output)
-    const oneDay = 24*60*60
-    for ch := range input {
-        if (ch.row.secondUsed + oneDay >= ch.row.secondBase) {
-            output <- userData{
-                row: ch.row,
-                msg: "notified (time limit in 1d)",
+                set: true,
             }
             continue
         }
@@ -169,10 +161,38 @@ func byteNotif2(input <- chan userData, output chan userData) {
     defer close(output)
     const oneGig = 1 << 30
     for ch := range input {
-        if (ch.row.bytesUsed + oneGig >= ch.row.bytesBase) {
+        if ch.set {
+            output <- ch
+            continue
+        }
+        if (ch.row.bytesUsed + oneGig) >= ch.row.bytesBase {
             output <- userData{
                 row: ch.row,
                 msg: "notified (byte limit in 1d)",
+                set: true,
+            }
+            continue
+        }
+        output <- userData{
+            row: ch.row,
+            msg: "ignored",
+        }
+    }
+}
+
+func timeNotif2(input <- chan userData, output chan userData) {
+    defer close(output)
+    const oneDay = 24*60*60
+    for ch := range input {
+        if ch.set {
+            output <- ch
+            continue
+        }
+        if (ch.row.secondUsed + oneDay) >= ch.row.secondBase {
+            output <- userData{
+                row: ch.row,
+                msg: "notified (time limit in 1d)",
+                set: true,
             }
             continue
         }

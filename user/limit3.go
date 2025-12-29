@@ -113,10 +113,15 @@ func byteCheck3(input <- chan userData) <- chan userData {
     go func(){
         defer close(output)
         for ch := range input {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.bytesUsed >= ch.row.bytesBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "deleted (byte-limit)",
+                    set: true,
                 }
                 continue
             }
@@ -134,10 +139,15 @@ func timeCheck3(input <- chan userData) <- chan userData {
     go func(){
         defer close(output)
         for ch := range input {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.secondUsed >= ch.row.secondBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "deleted (time-limit)",
+                    set: true,
                 }
                 continue
             }
@@ -156,10 +166,15 @@ func timeNotif3(input <- chan userData) <-chan userData {
         defer close(output)
         const oneDay = 24*60*60
         for ch := range input {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.secondUsed + oneDay >= ch.row.secondBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "notified (time limit in 1d)",
+                    set: true,
                 }
                 continue
             }
@@ -178,10 +193,15 @@ func byteNotif3(input <- chan userData) <-chan userData {
         defer close(output)
         const oneGig = 1 << 30
         for ch := range input {
+            if ch.set {
+                output <- ch
+                continue
+            }
             if (ch.row.bytesUsed + oneGig >= ch.row.bytesBase) {
                 output <- userData{
                     row: ch.row,
                     msg: "notified (byte limit in 1d)",
+                    set: true,
                 }
                 continue
             }
@@ -193,10 +213,3 @@ func byteNotif3(input <- chan userData) <-chan userData {
     }()
     return output
 }
-
-// func chanPrint(input <- chan userData) <- chan userData {
-//     for ch := range input {
-//         fmt.Printf("user.limit.%-20v %s\n", ch.row.username, ch.msg)
-//     }
-//     return
-// }
