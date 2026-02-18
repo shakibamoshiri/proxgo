@@ -1,9 +1,7 @@
 package user
 
 import (
-    // "os"
     "fmt"
-    "log"
     "encoding/hex"
     "encoding/json"
     "encoding/base64"
@@ -16,6 +14,8 @@ import (
     "regexp"
     "strings"
     "strconv"
+    "flag"
+    "os"
 
     "github.com/shakibamoshiri/proxgo/config"
     "github.com/shakibamoshiri/proxgo/server"
@@ -31,6 +31,7 @@ type User struct {
     Password string
     Page     string
     Profile  string
+    Device   string
 }
 
 func RandomHex(n int) string {
@@ -102,61 +103,38 @@ func parsePeriodCustom(format *string) int64 {
     return 0
 }
 
-func create(args []string) (err error) {
+func create(args []string) (res []map[string]any, err error) {
     config.Log.Debug("args", "=", args)
 
+    ucf := flag.NewFlagSet("userCreate", flag.ExitOnError)
+    var __name string
+    var __period string
+    var __traffic string
+    var __password string
+    var __noserver bool
+    var __user string
+    var __help bool
+    var __api bool
 
-    flags := map[string]string{
-        "name":       "name (alias) for a user [string]",
-        "period" :    "period (duration) <number>[s|m|h]",
-        "traffic" :   "traffic (volume) <number>[b|k|m|g]]",
-        "password" :  "password (base64)",
-        "username" :  "custom username for a user",
-        "noserver" :  "do not add user to servers",
-        "help" :  "show help",
-    }
+    ucf.BoolVar(&__api, "api", false, "api call (DO NOT USE THIS DIRECTLY)")
+    ucf.BoolVar(&__help, "help", false, "show help")
+    ucf.BoolVar(&__noserver, "nosrv", false, "add user but skip servers")
+    ucf.StringVar(&__name, "name", "", "real/alias name for a user (REQUIRED)")
+    ucf.StringVar(&__period, "period", "", "duration time <NUMBER|s|m|h>")
+    ucf.StringVar(&__traffic, "traffic", "", "traffic volume <NUMBERb|k|m|g>")
+    ucf.StringVar(&__password, "password", "", "base64 len(16) - openssl rand -base64 16")
+    ucf.Parse(args)
 
-
-    fq := &config.FlagQuery{}
-    fq.Take(args, flags)
-
-    __help, _ := fq.Find("help").Bool()
     if __help {
-        fq.Help(flags).Exit(0)
+        ucf.PrintDefaults()
+        os.Exit(0)
     }
 
-    __noserver, _ := fq.Find("noserver").Bool()
-    if __help {
-        log.Fatal(err)
+    if __name == "" {
+        config.Log.Error("create / --name is required")
+        err = fmt.Errorf("create / --name is required")
+        return res, err
     }
-
-    __realname, err := fq.Find( "name").Assert().String()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    __username, err := fq.Find("username").String()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    __traffic, err := fq.Find("traffic").String()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    __period, err := fq.Find("period").String()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    __password, err := fq.Find("password").String()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-
-
 
     userTraffic := parseTrafficCustom(&__traffic)
     userPeriod := parsePeriodCustom(&__period)
@@ -165,10 +143,10 @@ func create(args []string) (err error) {
     config.Log.Info("parsePeriodCustom(...)", "periodCustom", userPeriod)
 
 
-    if __username == "" {
-        __username = RandomHex(3)
+    if __user == "" {
+        __user = RandomHex(3)
     }
-    config.Log.Info("flag set check", "--username", __username)
+    config.Log.Info("flag set check", "--username", __user)
 
     if __password == "" {
         __password = RandomBase64(16)
@@ -176,7 +154,7 @@ func create(args []string) (err error) {
     config.Log.Info("flag set check", "--password", __password)
 
     agentPrefix := fmt.Sprintf("_%d_", config.AgentID)
-    ssUsername := fmt.Sprintf("_%d_%s", config.AgentID, __username)
+    ssUsername := fmt.Sprintf("_%d_%s", config.AgentID, __user)
     config.Log.Info("agent-prefix", "=", agentPrefix)
     config.Log.Info("shadowsocks-username", "=", ssUsername)
 
@@ -186,7 +164,8 @@ func create(args []string) (err error) {
     serverArgs := make([]string, 0, 0)
     err = server.Run("check", serverArgs, &yaml.Pools, io.Discard)
     if err != nil {
-        return fmt.Errorf("server.Run(check) %w", err)
+        err = fmt.Errorf("server.Run(check) %w", err)
+        return res, err
     }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -197,13 +176,13 @@ func create(args []string) (err error) {
     config.Log.Debug("DB.Info", "=", yaml.Pools.DB.Info[activeInfoIndex])
 
     reqBody := userCredentional {
-        Username: agentPrefix + __username,
+        Username: agentPrefix + __user,
         UPSK: __password,
     }
 
     jsonData, err := json.Marshal(reqBody)
     if err != nil {
-        return err
+        return res, err
     }
 
     config.Log.Info("json.Marshal(reqBody)", "jsonData", string(jsonData))
@@ -223,10 +202,10 @@ func create(args []string) (err error) {
         ssmApiAddr = server.Addr("users")
         config.Log.Info("SSM API address", "ssmApiAddr", ssmApiAddr)
 
-        fmt.Printf("%-30s", "user.create." + __username)
+        fmt.Printf("%-30s", "user.create." + __user)
         resp, err := client.Post(ssmApiAddr, "application/json", bytes.NewBuffer(jsonData))
         if err != nil {
-            return err
+            return res, err
         }
         defer func(){
             errClose := resp.Body.Close()
@@ -238,7 +217,7 @@ func create(args []string) (err error) {
         if resp.StatusCode != 201 {
             body, _ := io.ReadAll(resp.Body)
             err := fmt.Errorf("bad status: %d %s\nResponse: %s", resp.StatusCode, resp.Status, string(body))
-            return err
+            return res, err
         }
 
         fmt.Printf("%s\n", "created")
@@ -265,8 +244,8 @@ func create(args []string) (err error) {
     now := time.Now().Unix()
     profile := RandomHex(4)
     newUser := User{
-        Username: __username,
-        Realname: __realname,
+        Username: __user,
+        Realname: __name,
         Password: __password,
         Ctime: now,
         Profile: profile,
@@ -282,7 +261,8 @@ func create(args []string) (err error) {
 
     db, err := config.OpenDB(dbFile)
     if err != nil {
-        return fmt.Errorf("create() >> %w", err)
+        err = fmt.Errorf("create() >> %w", err)
+        return res, err
     }
 
     stmt, errPer := db.Prepare(`
@@ -292,7 +272,7 @@ func create(args []string) (err error) {
 
     if errPer != nil {
         config.Log.Error("db.Prepare", "=", errPer)
-        return errPer
+        return res, errPer
     }
     defer func(){
         errClose := stmt.Close()
@@ -313,8 +293,17 @@ func create(args []string) (err error) {
     )
     if errExec != nil {
         config.Log.Error("db.Prepare", "=", errExec)
-        return errExec
+        return res, errExec
     }
 
-    return nil
+    res = make([]map[string]any, 1, 1)
+    res[0] = map[string]any{
+        "user": __user,
+        "name": __name,
+        "error": "",
+        "status": "ok",
+    }
+
+
+    return res, nil
 }
