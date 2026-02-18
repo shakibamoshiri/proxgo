@@ -9,11 +9,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var yamlGlobal = &YamlFiles{}
+
 type YamlFiles struct {
 	Pools
 	Agents
 	poolsLoaded  bool
 	agentsLoaded bool
+}
+
+func NewYamlFile () *YamlFiles {
+    return yamlGlobal
+}
+
+func GetYamlConfig() (*Agents, *Pools) {
+    return agents, pools
 }
 
 var (
