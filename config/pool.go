@@ -48,6 +48,7 @@ var pools *Pools
 
 func (p *Pools) Load(poolID int) (*Pools, error) {
 	if poolID == 0 {
+        Log.Error("config / pool / Load() error", "pool cannot be zero", poolID)
 		return nil, fmt.Errorf("Load(poolID=%d) poolID cannot be zero", poolID)
 	}
 
@@ -64,7 +65,7 @@ func (p *Pools) Load(poolID int) (*Pools, error) {
 
 	pools = p
 	Log.Info("Load pool file", "=", poolFile)
-	return pools, nil
+	return p, nil
 }
 
 func (sr *Server) Addr(path string) string {
