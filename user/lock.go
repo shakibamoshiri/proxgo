@@ -15,20 +15,21 @@ import (
     "github.com/shakibamoshiri/proxgo/httpx"
 )
 
-func lock(args[] string) (err error) {
+func lock(args[] string) (res []map[string]any, err error) {
     config.Log.Debug("args", "=", args)
 
     flags := flag.NewFlagSet("lock", flag.ExitOnError)
-    username := flags.String("user", "", "username to lock")
+    var username string
+    flags.StringVar(&username, "user", "", "username to lock")
     flags.Parse(args)
 
 
-    if *username == "" {
+    if username == "" {
         println("user lock args:")
         flags.PrintDefaults()
         os.Exit(0)
     }
-    config.Log.Info("-user", "=", *username)
+    config.Log.Info("-user", "=", username)
 
 ////////////////////////////////////////////////////////////////////////////////
 // get the user from database
@@ -36,13 +37,15 @@ func lock(args[] string) (err error) {
     dbFile := fmt.Sprintf("./%s/%d.sqlite3", config.DbPath, config.AgentID)
     db, err := config.OpenDB(dbFile)
     if err != nil {
-        return fmt.Errorf("lock >> %w", err)
+        err = fmt.Errorf("lock >> %w", err)
+        return res, err
     }
 
     stmt, errPer := db.Prepare(` SELECT * FROM users WHERE username = ?`)
     if errPer != nil {
         config.Log.Error("lock", "db.Prepare", errPer)
-        return fmt.Errorf("lock >> %w", errPer)
+        err = fmt.Errorf("lock >> %w", errPer)
+        return res, err
     }
     defer func(){
         errClose := stmt.Close()
@@ -53,7 +56,7 @@ func lock(args[] string) (err error) {
 
     newUser := User{}
 
-    errExec := stmt.QueryRow(*username).Scan(
+    errExec := stmt.QueryRow(username).Scan(
         &newUser.Username,
         &newUser.Realname,
         &newUser.Ctime,
@@ -62,10 +65,12 @@ func lock(args[] string) (err error) {
         &newUser.Password,
         &newUser.Page,
         &newUser.Profile,
+        &newUser.Device,
     )
     if errExec != nil {
-        config.Log.Error("lock / stmt.QueryRow for", *username, errExec)
-        return fmt.Errorf("lock / stmt.QueryRow(%v) >> %w", *username, errExec)
+        config.Log.Error("lock / stmt.QueryRow for", username, errExec)
+        err = fmt.Errorf("lock / stmt.QueryRow(%v) >> %w", username, errExec)
+        return res, err
     }
 
     config.Log.Info("newUser", "=",  newUser)
@@ -77,7 +82,7 @@ func lock(args[] string) (err error) {
     serverArgs := make([]string, 0, 0)
     err = server.Run("check", serverArgs, &yaml.Pools, io.Discard)
     if err != nil {
-        return err
+        return res, err
     }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,14 +94,15 @@ func lock(args[] string) (err error) {
     config.Log.Info("yaml.ActiveInfoIndex", "=", activeInfoIndex)
 
     // agentPrefix := fmt.Sprintf("_%d_", config.AgentID)
-    ssUsername := fmt.Sprintf("_%d_%s", config.AgentID, *username)
+    ssUsername := fmt.Sprintf("_%d_%s", config.AgentID, username)
     reqBody := userCredentional {
+        Username: ssUsername,
         UPSK: RandomBase64(16),
     }
 
     jsonData, err := json.Marshal(reqBody)
     if err != nil {
-        return err
+        return res, err
     }
 
     config.Log.Info("json.Marshal(reqBody)", "jsonData", string(jsonData))
@@ -130,13 +136,17 @@ func lock(args[] string) (err error) {
             }
         }()
 
-        if resp.StatusCode != 204 {
-            body, _ := io.ReadAll(resp.Body)
-            err := fmt.Errorf("bad status: %d %s\nResponse: %s", resp.StatusCode, resp.Status, string(body))
-            return fmt.Errorf("lock / client.Post(%s) %w", *username, err)
+        if resp.StatusCode == 204 {
+            ob.Println("locked")
         }
 
-        ob.Println("locked")
+        if resp.StatusCode != 204 {
+            ob.Println("not found")
+            body, _ := io.ReadAll(resp.Body)
+            err := fmt.Errorf("bad status: %d %s Response: %s", resp.StatusCode, resp.Status, string(body))
+            config.Log.Warn("lock / client.Put failure", "username", username, "error", err)
+        }
+
         config.Log.Debug("http response", "status code", resp.StatusCode)
     }
 
@@ -145,9 +155,17 @@ func lock(args[] string) (err error) {
         ob.Stderr.Reset()
         ob.Fprintln("")
         ob.Flush()
-        return err
+        return res, err
+    }
+
+    res = make([]map[string]any, 1, 1)
+    res[0] = map[string]any{
+        "user": newUser.Username,
+        "name": newUser.Realname,
+        "error": "",
+        "status": "ok",
     }
 
     ob.Flush()
-    return nil
+    return res, nil
 }

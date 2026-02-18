@@ -10,7 +10,6 @@ import (
     "github.com/shakibamoshiri/proxgo/config"
 )
 
-var yaml config.YamlFiles
 
 const timeout time.Duration = 5
 
@@ -44,21 +43,24 @@ type LimitPipe struct {
     next    <-chan userData
 }
 
+var yaml = config.NewYamlFile()
 
-func Parse(args []string) (err error) {
+func Parse(args []string) (res []map[string]any, err error) {
     config.Log.Debug("args", "=", args)
     config.Log.Debug("AgentID", "=", config.AgentID)
 
     agents, err := yaml.Agents.Load()
     if err != nil {
-        return fmt.Errorf("user >> %w", err)
+        err = fmt.Errorf("user >> %w", err)
+        return res, err
     }
     config.Log.Debug("agents.Agent.PoolID", "=", agents.Agent.PoolID)
 
     activePoolId := agents.Agent.PoolID
     pools, err := yaml.Pools.Load(activePoolId)
     if err != nil {
-        return fmt.Errorf("user >> %w", err)
+        err = fmt.Errorf("user >> %w", err)
+        return res, err
     }
     config.Log.Debug("pools", "=", pools)
 
@@ -75,11 +77,11 @@ func Parse(args []string) (err error) {
     nextArgs := args[2:]
     switch nextCmd {
         case "create":
-            err = create(nextArgs)
+            res, err = create(nextArgs)
         case "delete":
-            err = _delete(nextArgs)
+            res, err = _delete(nextArgs)
         case "list":
-            err = list()
+            res, err = list()
         case "stats":
             err = stats(pools)
         case "setup":
@@ -98,13 +100,17 @@ func Parse(args []string) (err error) {
         case "archive":
             err = archive(nextArgs)
         case "config":
-            err = confiG(nextArgs)
+            err = confiG(nextArgs, pools)
         case "renew":
-            err = renew(nextArgs)
+            res, err = renew(nextArgs)
         case "lock":
-            err = lock(nextArgs)
+            res, err = lock(nextArgs)
         case "unlock":
-            err = unlock(nextArgs)
+            res, err = unlock(nextArgs)
+        case "dash":
+            err = dash(nextArgs)
+        case "page":
+            res, err = page()
         default:
             help.
             For("user").
@@ -114,10 +120,11 @@ func Parse(args []string) (err error) {
     }
 
     if err != nil {
-        return fmt.Errorf("user >> %w", err)
+        err = fmt.Errorf("user >> %w", err)
+        return res, err
     }
 
-    return nil
+    return res, nil
 }
 
 func Run(fn string, args []string, dev io.Writer) error {

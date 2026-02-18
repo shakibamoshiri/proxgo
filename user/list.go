@@ -25,18 +25,27 @@ func trafficUnit(t int64) (int64, string) {
     return t / (1024 * 1024 * 1024), "GB"
 }
 
-func list() (err error) {
+func list() (res []map[string]any, err error) {
     dbFile := fmt.Sprintf("./%s/%d.sqlite3", config.DbPath, config.AgentID)
     db, err := config.OpenDB(dbFile)
     if err != nil {
-        return fmt.Errorf("list() >> %w", err)
+        err = fmt.Errorf("list() >> %w", err)
+        return res, err
+    }
+
+    var rowCount int
+    err = db.QueryRow("SELECT COUNT(*) from users;").Scan(&rowCount)
+    config.Log.Debug("rowCount", "=", rowCount)
+    if err != nil {
+        return res, err
     }
 
     var rows *sql.Rows
     rows, err = db.Query(config.QUERY_USER_LIST)
     if err != nil {
         config.Log.Error("list", "db.Query", err)
-        return fmt.Errorf("list() / db.Query >> %w", err)
+        err = fmt.Errorf("list() / db.Query >> %w", err)
+        return res, err
     }
     defer func(){
         errRows := rows.Close()
@@ -47,7 +56,9 @@ func list() (err error) {
 
     fmt.Printf("%-15s %-20s %-10s %-10s %s\n", "username", "realname", "traffic", "session", "status")
 
-    for rows.Next() {
+    res = make([]map[string]any, rowCount, rowCount)
+
+    for i := 0; rows.Next(); i++ {
         var username string
         var realname string
         var traffic int64
@@ -55,12 +66,22 @@ func list() (err error) {
         var status string
         err = rows.Scan(&username, &realname, &traffic, &session, &status)
         if err != nil {
-            return fmt.Errorf("list() / rows.Next() %w", err)
+            err = fmt.Errorf("list() / rows.Next() %w", err)
+            return res, err
         }
         tr, unit := trafficUnit(traffic)
         trafficStr := fmt.Sprintf("%d%s", tr, unit)
         fmt.Printf("%-15s %-20s %-10s %-10d %s\n", username, realname, trafficStr, session, status)
-    }
 
-    return nil
+        res[i] = map[string]any{
+            "user": username,
+            "name": realname,
+            "traffic": trafficStr,
+            "session": session,
+            "status": status,
+        }
+    }
+    // fmt.Printf("res %+v\n", x)
+
+    return res, nil
 }

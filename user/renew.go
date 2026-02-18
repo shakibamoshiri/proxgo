@@ -14,20 +14,21 @@ import (
     "github.com/shakibamoshiri/proxgo/server"
 )
 
-func renew(args[] string) (err error) {
+func renew(args[] string) (res []map[string]any, err error) {
     config.Log.Debug("args []string", "=", args)
 
     flags := flag.NewFlagSet("renew", flag.ExitOnError)
-    username := flags.String("user", "", "username to renew")
+    var username string
+    flags.StringVar(&username, "user", "", "username to renew")
     flags.Parse(args)
 
 
-    if *username == "" {
+    if username == "" {
         println("user renew args:")
         flags.PrintDefaults()
         os.Exit(0)
     }
-    config.Log.Info("-user", "=", *username)
+    config.Log.Info("-user", "=", username)
 
 ////////////////////////////////////////////////////////////////////////////////
 // get the user from database
@@ -37,24 +38,26 @@ func renew(args[] string) (err error) {
 
     db, err := config.OpenDB(dbFile)
     if err != nil {
-        return fmt.Errorf("renew() >> %w", err)
+        err = fmt.Errorf("renew >> %w", err)
+        return res, err
     }
 
     stmt, errPer := db.Prepare(` SELECT * FROM users WHERE username = ?`)
     if errPer != nil {
         config.Log.Error("renew", "db.Prepare", errPer)
-        return fmt.Errorf("renew() >> %w", errPer)
+        err = fmt.Errorf("renew >> %w", errPer)
+        return res, err
     }
     defer func(){
         errClose := stmt.Close()
         if errClose != nil {
-            err = fmt.Errorf("renew() >> %w", errClose)
+            err = fmt.Errorf("renew >> %w", errClose)
         }
     }()
 
     newUser := User{}
 
-    errExec := stmt.QueryRow(*username).Scan(
+    errExec := stmt.QueryRow(username).Scan(
         &newUser.Username,
         &newUser.Realname,
         &newUser.Ctime,
@@ -63,10 +66,12 @@ func renew(args[] string) (err error) {
         &newUser.Password,
         &newUser.Page,
         &newUser.Profile,
+        &newUser.Device,
     )
     if errExec != nil {
         config.Log.Error("db.Prepare", "error", errExec)
-        return fmt.Errorf("renew() / stmt.QueryRow(%v) >> %w", *username, errExec)
+        err = fmt.Errorf("renew / stmt.QueryRow(%v) >> %w", username, errExec)
+        return res, err
     }
 
     config.Log.Info("newUser", "=",  newUser)
@@ -78,7 +83,7 @@ func renew(args[] string) (err error) {
     serverArgs := make([]string, 0, 0)
     err = server.Run("check", serverArgs, &yaml.Pools, io.Discard)
     if err != nil {
-        return err
+        return res, err
     }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,13 +96,13 @@ func renew(args[] string) (err error) {
 
     agentPrefix := fmt.Sprintf("_%d_", config.AgentID)
     reqBody := userCredentional {
-        Username: agentPrefix + *username,
+        Username: agentPrefix + username,
         UPSK: newUser.Password,
     }
 
     jsonData, err := json.Marshal(reqBody)
     if err != nil {
-        return err
+        return res, err
     }
 
     config.Log.Info("json.Marshal(reqBody)", "jsonData", string(jsonData))
@@ -134,7 +139,8 @@ func renew(args[] string) (err error) {
         if resp.StatusCode != 201 {
             body, _ := io.ReadAll(resp.Body)
             err := fmt.Errorf("bad status: %d %s\nResponse: %s", resp.StatusCode, resp.Status, string(body))
-            return fmt.Errorf("renew() / client.Post(%s) %w", *username, err)
+            err = fmt.Errorf("renew / client.Post(%s) %w", username, err)
+            return res, err
         }
 
         ob.Println("renewed")
@@ -146,7 +152,7 @@ func renew(args[] string) (err error) {
         ob.Stderr.Reset()
         ob.Fprintln("")
         ob.Flush()
-        return err
+        return res, err
     }
 
     ob.Flush()
@@ -157,8 +163,18 @@ func renew(args[] string) (err error) {
     var nextArgs = make([]string, 0, 0)
     err = server.Run("fetch", nextArgs, &yaml.Pools, io.Discard)
     if err != nil {
-        return fmt.Errorf("renew() / server.Run(fetch) %w", err)
+        err = fmt.Errorf("renew / server.Run(fetch) %w", err)
+        return res, err
     }
 
-    return nil
+    res = make([]map[string]any, 1, 1)
+    res[0] = map[string]any{
+        "user": newUser.Username,
+        "name": newUser.Realname,
+        "error": "",
+        "status": "ok",
+    }
+
+
+    return res, nil
 }
