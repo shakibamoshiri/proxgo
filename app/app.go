@@ -7,22 +7,23 @@ import (
     "github.com/shakibamoshiri/proxgo/config"
 )
 
-var yaml config.YamlFiles
+var yaml = config.NewYamlFile()
 
 func Parse(args []string) (err error) {
     config.Log.Debug("args []string", "=", args)
     config.Log.Debug("AgentID", "=", config.AgentID)
 
+
     agents, err := yaml.Agents.Load()
     if err != nil {
-        return fmt.Errorf("user >> %w", err)
+        return fmt.Errorf("app >> %w", err)
     }
     config.Log.Debug("agents.Agent.PoolID", "=", agents.Agent.PoolID)
 
     activePoolId := agents.Agent.PoolID
     pools, err := yaml.Pools.Load(activePoolId)
     if err != nil {
-        return fmt.Errorf("user >> %w", err)
+        return fmt.Errorf("app >> %w", err)
     }
     config.Log.Debug("pools", "=", pools)
 
@@ -41,6 +42,10 @@ func Parse(args []string) (err error) {
             err = run(nextArgs, &yaml.Pools, os.Stdout)
         case "service":
             err = service(nextArgs, &yaml.Pools, os.Stdout)
+        case "dash":
+            err = dash()
+        case "dash2":
+            err = dash2(nextArgs)
         default:
             help.
             For("app").
