@@ -57,7 +57,7 @@ func main() {
 	case "agent":
 		errChild = agent.Parse(args)
 	case "user":
-		errChild = user.Parse(args)
+		_, errChild = user.Parse(args)
 	case "data":
 		errChild = data.Parse(args)
 	case "tell":
