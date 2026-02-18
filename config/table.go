@@ -92,7 +92,8 @@ SELECT
     b.bytes_pday,
     b.seconds_base,
     b.seconds_used
-FROM bytes b;`
+FROM bytes b
+INNER JOIN fetched f ON b.username = f.username;`
 
 const QUERY_USER_SETUP = `
 SELECT
