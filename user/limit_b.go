@@ -84,7 +84,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
         ob.Fprintf(dev, "%-30s", "user.limit." + user.username)
         if (user.bytesUsed >= user.bytesBase) {
             nextArgs := []string{"-user", user.username}
-            err = _delete(nextArgs)
+            _, err = _delete(nextArgs)
             if err != nil {
                 return fmt.Errorf("limit / delete(%s) user %w", user.username, err)
             }
@@ -106,7 +106,7 @@ func limit_b(ctx context.Context, args []string, dev io.Writer) (err error) {
 
         if (user.secondUsed >= user.secondBase) {
             nextArgs := []string{"-user", user.username}
-            err = _delete(nextArgs)
+            _, err = _delete(nextArgs)
             if err != nil {
                 return fmt.Errorf("limit / delete(%s) user %w", user.username,  err)
             }
